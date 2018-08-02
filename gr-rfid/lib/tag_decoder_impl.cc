@@ -209,7 +209,6 @@ namespace gr {
       return tag_bits;
     }
 
-#define SHIFT_SIZE 3
     std::vector<float> tag_decoder_impl::bit_decoding(
         std::vector<gr_complex> &samples_complex,
         int                     n_expected_bit,
@@ -225,23 +224,22 @@ namespace gr {
         {-1, 1, 1, -1}
       };
       int start, end;
-      int shift_cum=0;
 
       //decode bit every round
       for (int i = 0; i < n_expected_bit; i++) {
-        float corr[5][4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float corr[4] = {0.0f, 0.0f, 0.0f, 0.0f};
         
-        start = (int)(i*n_samples_TAG_BIT)+shift_cum;
+        start = (int)(i*n_samples_TAG_BIT);
         end = start + (int)(2*n_samples_TAG_BIT);
-        
+
         if(i==0)
           std::cout << start<<std::endl;
         else if(i == RN16_BITS)
           std::cout << end << std::endl;
-  
+
         //calculating correlation values
         for (int j = 0; j < 4; j++) {
-          for (int k = start+SHIFT_SIZE; k < end-SHIFT_SIZE; k++) {
+          for (int k = start; k < end; k++) {
             int devi = 0;
             int position = k-start;
 
@@ -253,48 +251,27 @@ namespace gr {
               devi = 2;
             else  //last quarter
               devi = 3; 
-            for(int l=-SHIFT_SIZE;l<=SHIFT_SIZE;l++){
-              corr[l+SHIFT_SIZE][j] += masks[j][devi] * std::real(samples_complex[k+l]);  //calculate
-            }
+            corr[j] += masks[j][devi] * std::real(samples_complex[k]);  //calculate
           }
         }
-        int maxidx[SHIFT_SIZE*2+1] = {0,};
-        int secondidx[SHIFT_SIZE*2+1] = {0,};
+        int maxidx = 0;
 
         //find the most maximum correlation values
         for (int i = 0; i < 4; i++) {
-          for(int j=-2; j<3; j++){
-            if (corr[j+2][i] > corr[j+2][maxidx[j+2]]){
-              secondidx[j+2] = maxidx[j+2];
-              maxidx[j+2] = i;
-            }else if(corr[j+2][i] > corr[j+2][secondidx[j+2]])
-              secondidx[j+2] = i;
-          }
-        }
-        int shift = 0;  //actual value is shift-2
-        float diff[SHIFT_SIZE*2+1];
-        
-        //find out whether shift or not
-        for (int i = 0; i<SHIFT_SIZE*2+1;i++){
-          diff[i] = corr[i][maxidx[i]] - corr[i][secondidx[i]];
-          if(diff[i] > diff[shift])
-            shift = i;
+          if (corr[i] > corr[maxidx])
+            maxidx = i;
         }
 
-        std::cout<<shift-SHIFT_SIZE<<" ";
 
-        shift_cum += (shift-SHIFT_SIZE);
-       
         //based on maximum correlation value, decode the tag bits
-        if (maxidx[shift] <= 1){
+        if (maxidx <= 1){
           tag_bits.push_back(0);
         }
         else{
           tag_bits.push_back(1);
         }
       }
-      
-      std::cout<<std::endl<<"shift cum : "<<shift_cum<<std::endl;
+
 
 
       return tag_bits;
@@ -347,13 +324,13 @@ namespace gr {
             }
             fprintf(preamble_fp, "\n");
             fclose(preamble_fp);
- 
+
             std::vector<float> tag_bits;
 
             tag_bits = bit_decoding(RN16_samples_complex,RN16_BITS,0);
-            
+
             char databits[129];
-            
+
             for(int i = 0; i<128; i++){
               if(tag_bits[i] == 0)
                 databits[i] = '0';
