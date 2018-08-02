@@ -224,18 +224,33 @@ namespace gr {
         {-1, 1, 1, -1}
       };
       int start, end;
+      float n_samples_TAG_BIT_modified;
+      const gr_complex middle = h_est;
+
+#define Distance 10
+      //finding the end of tag data
+      for(int i = samples_complex.size() - 1;i>=0; i--){
+        gr_complex diff = samples_complex[i-Distance] - samples_complex[i];
+        if(std::abs(diff.real())>std::abs(middle.real()*1.5)){
+          n_samples_TAG_BIT_modified = (i - Distance - n_samples_TAG_BIT/2)/(n_expected_bit-1);
+          std::cout<<"bit size : "<<n_samples_TAG_BIT_modified<<std::endl;
+          break;
+        }
+      }
+
 
       //decode bit every round
       for (int i = 0; i < n_expected_bit; i++) {
         float corr[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-        
-        start = (int)(i*n_samples_TAG_BIT);
-        end = start + (int)(2*n_samples_TAG_BIT);
+        float average_amp = 0;
 
-        if(i==0)
-          std::cout << start<<std::endl;
-        else if(i == RN16_BITS)
-          std::cout << end << std::endl;
+        start = (int)(i*n_samples_TAG_BIT_modified);
+        end = start + (int)(2*n_samples_TAG_BIT_modified);
+
+        for(int j = start;j < end; j++)
+          average_amp += samples_complex[j].real();
+
+        average_amp = average_amp/(int)(n_samples_TAG_BIT_modified * 2);
 
         //calculating correlation values
         for (int j = 0; j < 4; j++) {
@@ -243,15 +258,15 @@ namespace gr {
             int devi = 0;
             int position = k-start;
 
-            if(position<(n_samples_TAG_BIT*0.5))  //first quarter
+            if(position<(n_samples_TAG_BIT_modified*0.5))  //first quarter
               devi = 0;
-            else if(position<(n_samples_TAG_BIT)) //second quarter
+            else if(position<(n_samples_TAG_BIT_modified)) //second quarter
               devi = 1;
-            else if(position<(n_samples_TAG_BIT*1.5)) //third quarter
+            else if(position<(n_samples_TAG_BIT_modified*1.5)) //third quarter
               devi = 2;
             else  //last quarter
               devi = 3; 
-            corr[j] += masks[j][devi] * std::real(samples_complex[k]);  //calculate
+            corr[j] += masks[j][devi] * (std::real(samples_complex[k])-average_amp);  //calculate
           }
         }
         int maxidx = 0;
@@ -313,8 +328,8 @@ namespace gr {
           // RN16 bits are passed to the next block for the creation of ACK message
           if ((RN16_index > 0.0f)&&(ninput_items[0]>6000))
           {  
-            for(int j = (int)(RN16_index); j < std::min(ninput_items[0]+(int)RN16_index, (int)(RN16_index+(RN16_BITS+2)*n_samples_TAG_BIT)); j++) 
-              RN16_samples_complex.push_back(in[j]-h_est);  //subtracting h_est(avg value) and save it in RN16_samples_complex
+            for(int j = (int)(RN16_index); j < std::min(ninput_items[0]+(int)RN16_index, (int)(RN16_index+(RN16_BITS+5)*n_samples_TAG_BIT)); j++) 
+              RN16_samples_complex.push_back(in[j]);  //save RN16 samples
 
             preamble_fp = fopen(("decode_data/"+std::to_string(reader_state->reader_stats.cur_inventory_round-1)).c_str(), "w");
             for(int i=0; i < RN16_samples_complex.size(); i++){
