@@ -229,7 +229,7 @@ namespace gr {
 
       //decode bit every round
       for (int i = 0; i < n_expected_bit; i++) {
-        float corr[5][4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float corr[SHIFT_SIZE*2+1][4] = {0.0f,};
         
         start = (int)(i*n_samples_TAG_BIT)+shift_cum;
         end = start + (int)(2*n_samples_TAG_BIT);
