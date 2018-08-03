@@ -227,6 +227,7 @@ namespace gr {
       int start, end;
       int shift_cum=0;
 
+      preamble_fp = fopen(("decode_data/"+std::to_string(reader_state->reader_stats.cur_inventory_round-1)).c_str(), "w");
       //decode bit every round
       for (int i = 0; i < n_expected_bit; i++) {
         float corr[SHIFT_SIZE*2+1][4] = {0.0f,};
@@ -238,7 +239,9 @@ namespace gr {
           std::cout << start<<std::endl;
         else if(i == RN16_BITS)
           std::cout << end << std::endl;
-  
+                  
+        fprintf(preamble_fp,"%d ",i);
+
         //calculating correlation values
         for (int j = 0; j < 4; j++) {
           for (int k = start+SHIFT_SIZE; k < end-SHIFT_SIZE; k++) {
@@ -252,39 +255,56 @@ namespace gr {
             else if(position<(n_samples_TAG_BIT*1.5)) //third quarter
               devi = 2;
             else  //last quarter
-              devi = 3; 
+              devi = 3;
+            if(j==0){
+              fprintf(preamble_fp, ", ");
+              fprintf(preamble_fp, "%f", samples_complex[k].real());
+            }
             for(int l=-SHIFT_SIZE;l<=SHIFT_SIZE;l++){
               corr[l+SHIFT_SIZE][j] += masks[j][devi] * std::real(samples_complex[k+l]);  //calculate
             }
           }
         }
+
+        fprintf(preamble_fp, "\n%d ",i);
+        
         int maxidx[SHIFT_SIZE*2+1] = {0,};
         int secondidx[SHIFT_SIZE*2+1] = {0,};
 
         //find the most maximum correlation values
         for (int i = 0; i < 4; i++) {
-          for(int j=-2; j<3; j++){
-            if (corr[j+2][i] > corr[j+2][maxidx[j+2]]){
-              secondidx[j+2] = maxidx[j+2];
-              maxidx[j+2] = i;
-            }else if(corr[j+2][i] > corr[j+2][secondidx[j+2]])
-              secondidx[j+2] = i;
+          for(int j=0; j<=SHIFT_SIZE*2; j++){
+            if (corr[j][i] > corr[j][maxidx[j]]){
+              secondidx[j] = maxidx[j];
+              maxidx[j] = i;
+            }else if(corr[j][i] > corr[j][secondidx[j]])
+              secondidx[j] = i;
           }
         }
+
+        for(int i = 0;i<=SHIFT_SIZE*2;i++){
+          fprintf(preamble_fp,", %d",maxidx[i]);
+        }
+        fprintf(preamble_fp, "\n%d ",i);
+        for(int i = 0;i<=SHIFT_SIZE*2;i++){
+          fprintf(preamble_fp,", %f",corr[i][maxidx[i]]);
+        }
+
         int shift = 0;  //actual value is shift-2
         float diff[SHIFT_SIZE*2+1];
-        
+
+
         //find out whether shift or not
         for (int i = 0; i<SHIFT_SIZE*2+1;i++){
-          diff[i] = corr[i][maxidx[i]] - corr[i][secondidx[i]];
-          if(diff[i] > diff[shift])
+          if(corr[i][maxidx[i]] > corr[shift][maxidx[shift]])
             shift = i;
         }
+        fprintf(preamble_fp, "\n");
 
         std::cout<<shift-SHIFT_SIZE<<" ";
 
         shift_cum += (shift-SHIFT_SIZE);
-       
+
         //based on maximum correlation value, decode the tag bits
         if (maxidx[shift] <= 1){
           tag_bits.push_back(0);
@@ -293,7 +313,8 @@ namespace gr {
           tag_bits.push_back(1);
         }
       }
-      
+
+      fclose(preamble_fp);
       std::cout<<std::endl<<"shift cum : "<<shift_cum<<std::endl;
 
 
@@ -338,22 +359,22 @@ namespace gr {
           {  
             for(int j = (int)(RN16_index); j < std::min(ninput_items[0]+(int)RN16_index, (int)(RN16_index+(RN16_BITS+2)*n_samples_TAG_BIT)); j++) 
               RN16_samples_complex.push_back(in[j]-h_est);  //subtracting h_est(avg value) and save it in RN16_samples_complex
-
-            preamble_fp = fopen(("decode_data/"+std::to_string(reader_state->reader_stats.cur_inventory_round-1)).c_str(), "w");
-            for(int i=0; i < RN16_samples_complex.size(); i++){
-              if(i!=0)
-                fprintf(preamble_fp, ", ");
-              fprintf(preamble_fp, "%f", RN16_samples_complex[i].real());
-            }
-            fprintf(preamble_fp, "\n");
-            fclose(preamble_fp);
- 
+            /*
+               preamble_fp = fopen(("decode_data/"+std::to_string(reader_state->reader_stats.cur_inventory_round-1)).c_str(), "w");
+               for(int i=0; i < RN16_samples_complex.size(); i++){
+               if(i!=0)
+               fprintf(preamble_fp, ", ");
+               fprintf(preamble_fp, "%f", RN16_samples_complex[i].real());
+               }
+               fprintf(preamble_fp, "\n");
+               fclose(preamble_fp);
+               */
             std::vector<float> tag_bits;
 
             tag_bits = bit_decoding(RN16_samples_complex,RN16_BITS,0);
-            
+
             char databits[129];
-            
+
             for(int i = 0; i<128; i++){
               if(tag_bits[i] == 0)
                 databits[i] = '0';
