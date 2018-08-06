@@ -41,6 +41,7 @@ namespace gr {
         gr_complex h_est;
         char * char_bits;
         FILE *preamble_fp;
+        int success_count;
 
         std::vector<float> tag_detection_EPC(std::vector<gr_complex> &EPC_samples_complex, int index);
         std::vector<float> tag_detection_RN16(std::vector<gr_complex> &RN16_samples_complex);      

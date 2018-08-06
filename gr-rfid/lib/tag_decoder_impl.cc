@@ -56,7 +56,7 @@ namespace gr {
 
 
       char_bits = (char *) malloc( sizeof(char) * 128);
-
+      success_count=0;
       n_samples_TAG_BIT = TAG_BIT_D * s_rate / pow(10,6);      
       GR_LOG_INFO(d_logger, "Number of samples of Tag bit : "<< n_samples_TAG_BIT);
     }
@@ -235,10 +235,10 @@ namespace gr {
         start = (int)(i*n_samples_TAG_BIT)+shift_cum;
         end = start + (int)(2*n_samples_TAG_BIT);
         
-        if(i==0)
-          std::cout << start<<std::endl;
-        else if(i == RN16_BITS)
-          std::cout << end << std::endl;
+        //if(i==0)
+        //  std::cout << start<<std::endl;
+        //else if(i == RN16_BITS)
+        //  std::cout << end << std::endl;
                   
         fprintf(preamble_fp,"%d ",i);
 
@@ -301,7 +301,7 @@ namespace gr {
         }
         fprintf(preamble_fp, "\n");
 
-        std::cout<<shift-SHIFT_SIZE<<" ";
+        //std::cout<<shift-SHIFT_SIZE<<" ";
 
         shift_cum += (shift-SHIFT_SIZE);
 
@@ -315,7 +315,7 @@ namespace gr {
       }
 
       fclose(preamble_fp);
-      std::cout<<std::endl<<"shift cum : "<<shift_cum<<std::endl;
+      //std::cout<<std::endl<<"shift cum : "<<shift_cum<<std::endl;
 
 
       return tag_bits;
@@ -389,18 +389,14 @@ namespace gr {
             int crc_checked = check_crc(databits, 128);
 
             if(crc_checked==1)
+            {
               std::cout << "Tag decoding Success!"<<std::endl;
+              success_count++;
+            }
             else if(crc_checked==-1)
               std::cout << "Tag decoding Failed!!"<<std::endl;
+            std::cout<< "Success Count : "<<success_count<<std::endl;
 
-            //std::cout << "Data : ";
-
-            //for(int i = 0; i<tag_bits.size();i++)
-            //{
-            //  std::cout<<tag_bits[i];
-            //}
-
-            //std::cout<<std::endl;
 
             RN16_bits = tag_bits;
             for(int bit=0; bit<RN16_bits.size(); bit++)
