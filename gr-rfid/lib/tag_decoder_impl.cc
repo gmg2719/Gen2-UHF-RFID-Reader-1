@@ -231,16 +231,19 @@ namespace gr {
       //decode bit every round
       for (int i = 0; i < n_expected_bit; i++) {
         float corr[SHIFT_SIZE*2+1][4] = {0.0f,};
-        
+
+        fprintf(preamble_fp,"%d ",i);
+
         start = (int)(i*n_samples_TAG_BIT)+shift_cum;
         end = start + (int)(2*n_samples_TAG_BIT);
-        
-        //if(i==0)
-        //  std::cout << start<<std::endl;
-        //else if(i == RN16_BITS)
-        //  std::cout << end << std::endl;
-                  
-        fprintf(preamble_fp,"%d ",i);
+
+        float average_amp = 0;
+
+
+        for(int j = start;j < end; j++)
+          average_amp += samples_complex[j].real();
+
+        average_amp = average_amp/(int)(n_samples_TAG_BIT * 2);
 
         //calculating correlation values
         for (int j = 0; j < 4; j++) {
@@ -261,13 +264,13 @@ namespace gr {
               fprintf(preamble_fp, "%f", samples_complex[k].real());
             }
             for(int l=-SHIFT_SIZE;l<=SHIFT_SIZE;l++){
-              corr[l+SHIFT_SIZE][j] += masks[j][devi] * std::real(samples_complex[k+l]);  //calculate
+              corr[l+SHIFT_SIZE][j] += masks[j][devi] * (std::real(samples_complex[k+l])-average_amp);  //calculate
             }
           }
         }
 
         fprintf(preamble_fp, "\n%d ",i);
-        
+
         int maxidx[SHIFT_SIZE*2+1] = {0,};
         int secondidx[SHIFT_SIZE*2+1] = {0,};
 
@@ -358,7 +361,7 @@ namespace gr {
           if ((RN16_index > 0.0f)&&(ninput_items[0]>6000))
           {  
             for(int j = (int)(RN16_index); j < std::min(ninput_items[0]+(int)RN16_index, (int)(RN16_index+(RN16_BITS+2)*n_samples_TAG_BIT)); j++) 
-              RN16_samples_complex.push_back(in[j]-h_est);  //subtracting h_est(avg value) and save it in RN16_samples_complex
+              RN16_samples_complex.push_back(in[j]);  //subtracting h_est(avg value) and save it in RN16_samples_complex
             /*
                preamble_fp = fopen(("decode_data/"+std::to_string(reader_state->reader_stats.cur_inventory_round-1)).c_str(), "w");
                for(int i=0; i < RN16_samples_complex.size(); i++){
